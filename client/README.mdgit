@@ -1,0 +1,1 @@
+# data-management-dashboard initgit add README.mdgit commit -m first commitgit branch -M maingit remote add origin https://github.com/GabrielBeckler/data-management-dashboard.gitgit push -u origin main
