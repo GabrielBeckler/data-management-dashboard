@@ -1,5 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, LocalAuth, Message, MessageMedia } from 'whatsapp-web.js';
+const qrcodeTerminal = require('qrcode-terminal') as {
+  generate: (
+    value: string,
+    options: { small: boolean },
+    callback: (code: string) => void,
+  ) => void;
+};
 import { WhatsAppStatus } from './whatsapp.types';
 
 export interface WhatsAppClientConfig {
@@ -11,6 +18,9 @@ export interface WhatsAppClientConfig {
 export class WhatsAppClient {
   private readonly logger = new Logger(WhatsAppClient.name);
   private client: Client | null = null;
+  private pendingConnectHandler: ((status: WhatsAppStatus) => void) | null = null;
+  private connectionPromise: Promise<WhatsAppStatus> | null = null;
+  private clientInitialized = false;
   private status: WhatsAppStatus = {
     connected: false,
     ready: false,
@@ -21,11 +31,18 @@ export class WhatsAppClient {
     this.initialize();
   }
 
+  private resolvePendingConnect(status: WhatsAppStatus): void {
+    if (this.pendingConnectHandler) {
+      this.pendingConnectHandler({ ...status });
+      this.pendingConnectHandler = null;
+    }
+  }
+
   private initialize(): void {
     const sessionName = process.env.WHATSAPP_SESSION_NAME ?? 'otica';
     const headless = process.env.WHATSAPP_HEADLESS !== 'false';
 
-    this.client = new Client({
+    const client = new Client({
       authStrategy: new LocalAuth({
         dataPath: `.wwebjs_auth/${sessionName}`,
       }),
@@ -34,86 +51,156 @@ export class WhatsAppClient {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       },
     });
+    this.client = client;
 
-    this.client.on('qr', (qr) => {
+    client.on('qr', (qr) => {
+      if (this.client !== client) return;
       this.status = {
         connected: false,
         ready: false,
         status: 'qr_available',
         qrCode: qr,
       };
-      this.logger.warn(`WhatsApp QR code generated for session: ${sessionName}`);
+      this.resolvePendingConnect(this.status);
+      qrcodeTerminal.generate(qr, { small: true }, (code) => {
+        this.logger.warn(
+          `WhatsApp QR code generated for session: ${sessionName}\n${code}`,
+        );
+      });
     });
 
-    this.client.on('authenticated', () => {
+    client.on('authenticated', () => {
+      if (this.client !== client) return;
       this.status = {
         connected: true,
         ready: false,
         status: 'authenticated',
       };
+      this.resolvePendingConnect(this.status);
       this.logger.log('WhatsApp authenticated');
     });
 
-    this.client.on('ready', () => {
+    client.on('ready', () => {
+      if (this.client !== client) return;
       this.status = {
         connected: true,
         ready: true,
         status: 'ready',
       };
+      this.resolvePendingConnect(this.status);
       this.logger.log('WhatsApp ready');
     });
 
-    this.client.on('auth_failure', () => {
+    client.on('auth_failure', () => {
+      if (this.client !== client) return;
       this.status = {
         connected: false,
         ready: false,
         status: 'auth_failed',
       };
+      this.client = null;
+      this.clientInitialized = false;
+      this.resolvePendingConnect(this.status);
       this.logger.error('WhatsApp authentication failed');
     });
 
-    this.client.on('disconnected', () => {
+    client.on('disconnected', () => {
+      if (this.client !== client) return;
       this.status = {
         connected: false,
         ready: false,
         status: 'disconnected',
       };
+      this.client = null;
+      this.clientInitialized = false;
+      this.resolvePendingConnect(this.status);
       this.logger.warn('WhatsApp disconnected');
     });
   }
 
-  async connect(): Promise<void> {
-    if (!this.client) {
-        this.initialize();
+  async connect(): Promise<WhatsAppStatus> {
+    const currentStatus = this.getStatus();
+    if (
+      currentStatus.status === 'qr_available' ||
+      currentStatus.status === 'authenticated' ||
+      currentStatus.status === 'ready'
+    ) {
+      return currentStatus;
+    }
+
+    if (this.connectionPromise) {
+      return this.connectionPromise;
     }
 
     this.status = {
-        connected: false,
-        ready: false,
-        status: 'connecting',
+      connected: false,
+      ready: false,
+      status: 'connecting',
     };
 
-    try {
-        await this.client!.initialize();
-    } catch (error) {
-        this.status = {
-        connected: false,
-        ready: false,
-        status: 'disconnected',
-        };
+    let attempt: Promise<WhatsAppStatus>;
+    attempt = new Promise<WhatsAppStatus>((resolve, reject) => {
+      this.pendingConnectHandler = (status) => {
+        if (this.connectionPromise !== attempt) return;
+        this.pendingConnectHandler = null;
+        this.connectionPromise = null;
+        resolve({ ...status });
+      };
 
-        this.logger.error('Failed to initialize WhatsApp client', error);
-        throw error;
-    }
-}
+      const start = async () => {
+        let initializingClient: Client | null = null;
+        try {
+          if (!this.client) {
+            this.initialize();
+          }
+          initializingClient = this.client;
+
+          if (!this.clientInitialized) {
+            await initializingClient!.initialize();
+            if (this.client === initializingClient) {
+              this.clientInitialized = true;
+            }
+          }
+        } catch (error) {
+          const failedClient = initializingClient;
+          if (
+            (failedClient && this.client === failedClient) ||
+            (!failedClient && this.connectionPromise === attempt)
+          ) {
+            this.client = null;
+            this.clientInitialized = false;
+            this.pendingConnectHandler = null;
+            this.connectionPromise = null;
+            this.status = {
+              connected: false,
+              ready: false,
+              status: 'disconnected',
+            };
+          }
+          this.logger.error('Failed to initialize WhatsApp client', error);
+          await failedClient?.destroy().catch(() => undefined);
+          reject(error);
+        }
+      };
+
+      void start();
+    });
+
+    this.connectionPromise = attempt;
+    return attempt;
+  }
 
   async disconnect(): Promise<void> {
-    await this.client?.destroy();
+    const client = this.client;
+    this.client = null;
+    this.clientInitialized = false;
     this.status = {
       connected: false,
       ready: false,
       status: 'disconnected',
     };
+    this.resolvePendingConnect(this.status);
+    await client?.destroy();
   }
 
   getStatus(): WhatsAppStatus {
@@ -121,19 +208,33 @@ export class WhatsAppClient {
   }
 
   async sendMessage(phone: string, message: string): Promise<boolean> {
-    if (!this.client || !this.status.ready || this.status.status !== 'ready') {
+    const client = this.client;
+    if (!client || !this.status.ready || this.status.status !== 'ready') {
       return false;
     }
 
-    const sanitizedPhone = phone.replace(/[^\d]/g, '');
-    const contact = await this.client.getContactById(`${sanitizedPhone}@c.us`);
-
-    if (!contact) {
-      return false;
+    let sanitizedPhone = phone.replace(/\D/g, '');
+    // Remove Brazil's domestic trunk prefix before checking the country code.
+    if (sanitizedPhone.startsWith('0')) {
+      sanitizedPhone = sanitizedPhone.replace(/^0+/, '');
+    }
+    if (!sanitizedPhone.startsWith('55')) {
+      sanitizedPhone = `55${sanitizedPhone}`;
     }
 
-    await this.client.sendMessage(`${contact.id._serialized}`, message);
-    return true;
+    try {
+      const numberId = await client.getNumberId(sanitizedPhone);
+      if (!numberId) return false;
+
+      await client.sendMessage(numberId._serialized, message);
+      return true;
+    } catch (error) {
+      this.logger.warn(
+        `Could not send WhatsApp message to ${sanitizedPhone}`,
+        error,
+      );
+      return false;
+    }
   }
 
   async sendMedia(phone: string, media: MessageMedia): Promise<boolean> {
