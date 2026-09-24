@@ -33,9 +33,6 @@ export class WhatsAppClient {
         headless,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       },
-      webVersionCache: {
-        type: 'none',
-      },
     });
 
     this.client.on('qr', (qr) => {
