@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { GoogleCalendarModule } from '../google-calendar/google-calendar.module';
 import { ConversationService } from './conversation/conversation.service';
 import { InMemoryConversationStateStore } from './conversation/conversation.state';
 import { ConversationStateStore } from './conversation/conversation.types';
@@ -9,6 +10,7 @@ import { WhatsAppEvents } from './whatsapp.events';
 import { WhatsAppService } from './whatsapp.service';
 
 @Module({
+  imports: [GoogleCalendarModule],
   controllers: [WhatsAppController],
   providers: [
     WhatsAppClient,

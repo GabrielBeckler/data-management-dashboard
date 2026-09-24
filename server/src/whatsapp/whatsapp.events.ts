@@ -14,6 +14,11 @@ export class WhatsAppEvents implements OnModuleInit {
 
   onModuleInit(): void {
     this.whatsappClient.onMessage(async (message: Message) => {
+      if (message.from.endsWith('@g.us')) {
+        this.logger.debug('Ignoring WhatsApp group message');
+        return;
+      }
+
       const normalizedPhone = this.normalizePhone(message.from);
       const body = message.body?.trim() ?? '';
 

@@ -1,12 +1,9 @@
-export abstract class ConversationStateStore {
-  abstract get(
-    phone: string,
-  ): { phone: string; state: string; step?: string; data?: Record<string, unknown> } | undefined;
+import { ConversationState } from '../whatsapp.types';
 
-  abstract set(
-    phone: string,
-    state: { phone: string; state: string; step?: string; data?: Record<string, unknown> },
-  ): void;
+export abstract class ConversationStateStore {
+  abstract get(phone: string): ConversationState | undefined;
+
+  abstract set(phone: string, state: ConversationState): void;
 
   abstract delete(phone: string): void;
   abstract clear(): void;

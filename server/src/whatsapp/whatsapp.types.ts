@@ -27,8 +27,29 @@ export interface IncomingWhatsAppMessage {
 
 export interface ConversationState {
   phone: string;
-  state: string;
-  step?: string;
-  data?: Record<string, unknown>;
+  state: ConversationStep;
+  step: ConversationStep;
+  data: ConversationData;
   updatedAt?: Date;
+}
+
+export type ConversationStep =
+  | 'initial'
+  | 'appointment_name'
+  | 'appointment_date'
+  | 'appointment_time'
+  | 'appointment_confirmation';
+
+export interface AppointmentSlot {
+  start: string;
+  end: string;
+  label: string;
+}
+
+export interface ConversationData {
+  name?: string;
+  date?: string;
+  time?: string;
+  slots?: AppointmentSlot[];
+  calendarEventId?: string;
 }
