@@ -38,7 +38,9 @@ export type ConversationStep =
   | 'appointment_name'
   | 'appointment_date'
   | 'appointment_time'
-  | 'appointment_confirmation';
+  | 'appointment_confirmation'
+  | 'cancel_appointment_selection'
+  | 'reschedule_appointment_selection';
 
 export interface AppointmentSlot {
   start: string;
@@ -52,4 +54,18 @@ export interface ConversationData {
   time?: string;
   slots?: AppointmentSlot[];
   calendarEventId?: string;
+  appointmentId?: string;
+  appointmentAction?: 'cancel' | 'reschedule';
+  appointments?: AppointmentConversationOption[];
+  previousAppointment?: AppointmentConversationOption;
+  slotEnd?: string;
+}
+
+export interface AppointmentConversationOption {
+  id: string;
+  name: string;
+  date: string;
+  start: string;
+  end: string;
+  googleEventId?: string;
 }

@@ -8,6 +8,9 @@ import { WhatsAppClient } from './whatsapp.client';
 import { WhatsAppController } from './whatsapp.controller';
 import { WhatsAppEvents } from './whatsapp.events';
 import { WhatsAppService } from './whatsapp.service';
+import { WhatsAppDelayService } from './delay.service';
+import { WhatsAppPersistenceService } from './persistence/whatsapp-persistence.service';
+import { ReminderSchedulerService } from './reminders/reminder-scheduler.service';
 
 @Module({
   imports: [GoogleCalendarModule],
@@ -15,6 +18,9 @@ import { WhatsAppService } from './whatsapp.service';
   providers: [
     WhatsAppClient,
     WhatsAppService,
+    WhatsAppDelayService,
+    WhatsAppPersistenceService,
+    ReminderSchedulerService,
     MenuService,
     ConversationService,
     WhatsAppEvents,

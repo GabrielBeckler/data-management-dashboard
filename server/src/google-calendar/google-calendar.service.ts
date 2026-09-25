@@ -54,12 +54,16 @@ export class GoogleCalendarService {
     const today = this.localDateParts(now, this.getTimezone());
     const selectedDay = this.dateOrdinal(year, month, day);
     const todayOrdinal = this.dateOrdinal(today.year, today.month, today.day);
-    if (selectedDay < todayOrdinal || selectedDay > todayOrdinal + 30) return null;
+    if (selectedDay < todayOrdinal || selectedDay > todayOrdinal + 30)
+      return null;
 
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
-  async getAvailableSlots(date: string): Promise<AppointmentSlot[]> {
+  async getAvailableSlots(
+    date: string,
+    ignoredEventId?: string,
+  ): Promise<AppointmentSlot[]> {
     const config = this.getScheduleConfig();
     const { timeMin, timeMax } = this.getDayBounds(date, config.timezone);
     const response = await this.getCalendar().events.list({
@@ -83,10 +87,12 @@ export class GoogleCalendarService {
       const endClock = this.formatClock(minute + config.durationMinutes);
       const start = this.localTimeToUtc(date, startClock, config.timezone);
       const end = this.localTimeToUtc(date, endClock, config.timezone);
-      const busy = events.some((event) =>
-        event.status !== 'cancelled' &&
-        event.transparency !== 'transparent' &&
-        this.eventOverlaps(event, start, end, config.timezone),
+      const busy = events.some(
+        (event) =>
+          event.id !== ignoredEventId &&
+          event.status !== 'cancelled' &&
+          event.transparency !== 'transparent' &&
+          this.eventOverlaps(event, start, end, config.timezone),
       );
       if (!busy && start.getTime() > Date.now()) {
         slots.push({ start: startClock, end: endClock, label: startClock });
@@ -104,7 +110,11 @@ export class GoogleCalendarService {
     }
 
     const config = this.getScheduleConfig();
-    const start = this.localTimeToUtc(request.date, request.time, config.timezone);
+    const start = this.localTimeToUtc(
+      request.date,
+      request.time,
+      config.timezone,
+    );
     const end = new Date(start.getTime() + config.durationMinutes * 60_000);
     const response = await this.getCalendar().events.insert({
       calendarId: this.getCalendarId(),
@@ -123,6 +133,47 @@ export class GoogleCalendarService {
     return { created: true, eventId: response.data.id ?? undefined };
   }
 
+  async cancelEvent(eventId: string): Promise<void> {
+    await this.getCalendar().events.delete({
+      calendarId: this.getCalendarId(),
+      eventId,
+    });
+  }
+
+  async rescheduleEvent(
+    eventId: string,
+    request: AppointmentRequest,
+  ): Promise<CreateAppointmentResult> {
+    const availableSlots = await this.getAvailableSlots(request.date, eventId);
+    if (!availableSlots.some((slot) => slot.start === request.time)) {
+      return { created: false, availableSlots };
+    }
+
+    const config = this.getScheduleConfig();
+    const start = this.localTimeToUtc(
+      request.date,
+      request.time,
+      config.timezone,
+    );
+    const end = new Date(start.getTime() + config.durationMinutes * 60_000);
+    await this.getCalendar().events.patch({
+      calendarId: this.getCalendarId(),
+      eventId,
+      requestBody: {
+        summary: `Atendimento - ${request.name}`,
+        description: [
+          'Agendamento realizado pelo WhatsApp.',
+          '',
+          `Cliente: ${request.name}`,
+          `Telefone: ${request.phone}`,
+        ].join('\n'),
+        start: { dateTime: start.toISOString(), timeZone: config.timezone },
+        end: { dateTime: end.toISOString(), timeZone: config.timezone },
+      },
+    });
+    return { created: true, eventId };
+  }
+
   private getCalendar(): calendar_v3.Calendar {
     if (this.calendarApi) return this.calendarApi;
     const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -130,10 +181,16 @@ export class GoogleCalendarService {
     const redirectUri = process.env.GOOGLE_REDIRECT_URI;
     const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
     if (!clientId || !clientSecret || !redirectUri || !refreshToken) {
-      throw new Error('Google Calendar OAuth is not fully configured in the environment.');
+      throw new Error(
+        'Google Calendar OAuth is not fully configured in the environment.',
+      );
     }
 
-    const oauthClient = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+    const oauthClient = new google.auth.OAuth2(
+      clientId,
+      clientSecret,
+      redirectUri,
+    );
     oauthClient.setCredentials({ refresh_token: refreshToken });
     this.calendarApi = google.calendar({ version: 'v3', auth: oauthClient });
     return this.calendarApi;
@@ -158,15 +215,21 @@ export class GoogleCalendarService {
     const startTime = process.env.APPOINTMENT_START_TIME;
     const endTime = process.env.APPOINTMENT_END_TIME;
     if (
-      !Number.isInteger(durationMinutes) || durationMinutes <= 0 ||
-      !Number.isInteger(intervalMinutes) || intervalMinutes <= 0 ||
-      !startTime || !endTime
+      !Number.isInteger(durationMinutes) ||
+      durationMinutes <= 0 ||
+      !Number.isInteger(intervalMinutes) ||
+      intervalMinutes <= 0 ||
+      !startTime ||
+      !endTime
     ) {
-      throw new Error('Appointment schedule environment variables are missing or invalid.');
+      throw new Error(
+        'Appointment schedule environment variables are missing or invalid.',
+      );
     }
     const startMinute = this.parseClock(startTime);
     const endMinute = this.parseClock(endTime);
-    if (startMinute >= endMinute) throw new Error('Appointment hours are invalid.');
+    if (startMinute >= endMinute)
+      throw new Error('Appointment hours are invalid.');
     return { timezone, durationMinutes, intervalMinutes, startTime, endTime };
   }
 
@@ -190,7 +253,10 @@ export class GoogleCalendarService {
     return slotStart < eventEnd && slotEnd > eventStart;
   }
 
-  private getDayBounds(date: string, timezone: string): { timeMin: Date; timeMax: Date } {
+  private getDayBounds(
+    date: string,
+    timezone: string,
+  ): { timeMin: Date; timeMax: Date } {
     const [year, month, day] = date.split('-').map(Number);
     const next = new Date(Date.UTC(year, month - 1, day + 1));
     const nextDate = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
@@ -219,7 +285,10 @@ export class GoogleCalendarService {
     return new Date(result);
   }
 
-  private localDateParts(date: Date, timezone: string): { year: number; month: number; day: number } {
+  private localDateParts(
+    date: Date,
+    timezone: string,
+  ): { year: number; month: number; day: number } {
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: timezone,
       year: 'numeric',
@@ -236,7 +305,13 @@ export class GoogleCalendarService {
   private localDateTimeParts(
     date: Date,
     timezone: string,
-  ): { year: number; month: number; day: number; hour: number; minute: number } {
+  ): {
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+  } {
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: timezone,
       year: 'numeric',
@@ -246,13 +321,24 @@ export class GoogleCalendarService {
       minute: '2-digit',
       hourCycle: 'h23',
     }).formatToParts(date);
-    const value = (type: string) => Number(parts.find((part) => part.type === type)?.value);
-    return { year: value('year'), month: value('month'), day: value('day'), hour: value('hour'), minute: value('minute') };
+    const value = (type: string) =>
+      Number(parts.find((part) => part.type === type)?.value);
+    return {
+      year: value('year'),
+      month: value('month'),
+      day: value('day'),
+      hour: value('hour'),
+      minute: value('minute'),
+    };
   }
 
   private isValidDate(year: number, month: number, day: number): boolean {
     const date = new Date(Date.UTC(year, month - 1, day));
-    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+    return (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    );
   }
 
   private dateOrdinal(year: number, month: number, day: number): number {
@@ -261,7 +347,8 @@ export class GoogleCalendarService {
 
   private parseClock(time: string): number {
     const match = time.match(/^(\d{2}):([0-5]\d)$/);
-    if (!match || Number(match[1]) > 23) throw new Error(`Invalid appointment time: ${time}`);
+    if (!match || Number(match[1]) > 23)
+      throw new Error(`Invalid appointment time: ${time}`);
     return Number(match[1]) * 60 + Number(match[2]);
   }
 

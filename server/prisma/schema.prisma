@@ -1,12 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
+// Existing MariaDB tables are mapped here. Do not create migrations from this schema.
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -14,3 +8,65 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Cliente {
+  id             BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  nome           String        @db.VarChar(150)
+  telefone       String        @unique(map: "uk_clientes_telefone") @db.VarChar(30)
+  email          String?       @db.VarChar(150)
+  dataNascimento DateTime?     @map("data_nascimento") @db.Date
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt      DateTime      @default(now()) @map("updated_at") @db.Timestamp(0)
+  agendamentos   Agendamento[]
+  mensagens      Mensagem[]
+
+  @@map("clientes")
+}
+
+model Agendamento {
+  id            BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  clienteId     BigInt     @map("cliente_id") @db.UnsignedBigInt
+  googleEventId String?    @unique(map: "uk_agendamentos_google_event") @map("google_event_id") @db.VarChar(255)
+  data          DateTime   @db.Date
+  horaInicio    DateTime   @map("hora_inicio") @db.Time(0)
+  horaFim       DateTime   @map("hora_fim") @db.Time(0)
+  status        String     @default("confirmado") @db.VarChar(30)
+  observacoes   String?    @db.Text
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt     DateTime   @default(now()) @map("updated_at") @db.Timestamp(0)
+  cliente       Cliente    @relation(fields: [clienteId], references: [id], map: "fk_agendamentos_cliente")
+  lembretes     Lembrete[]
+
+  @@index([clienteId], map: "idx_agendamentos_cliente")
+  @@index([data], map: "idx_agendamentos_data")
+  @@index([status], map: "idx_agendamentos_status")
+  @@map("agendamentos")
+}
+
+model Mensagem {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  clienteId BigInt?  @map("cliente_id") @db.UnsignedBigInt
+  telefone  String   @db.VarChar(30)
+  direcao   String   @db.VarChar(10)
+  mensagem  String   @db.Text
+  tipo      String   @default("texto") @db.VarChar(30)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], map: "fk_mensagens_cliente")
+
+  @@index([clienteId], map: "idx_mensagens_cliente")
+  @@index([telefone], map: "idx_mensagens_telefone")
+  @@map("mensagens")
+}
+
+model Lembrete {
+  id            BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  agendamentoId BigInt      @map("agendamento_id") @db.UnsignedBigInt
+  tipo          String      @db.VarChar(50)
+  enviado       Boolean     @default(false)
+  enviadoEm     DateTime?   @map("enviado_em") @db.Timestamp(0)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamp(0)
+  agendamento   Agendamento @relation(fields: [agendamentoId], references: [id], onDelete: Cascade, map: "fk_lembretes_agendamento")
+
+  @@unique([agendamentoId, tipo], map: "uk_lembrete_agendamento_tipo")
+  @@index([enviado], map: "idx_lembretes_enviado")
+  @@map("lembretes")
+}
