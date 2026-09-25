@@ -19,6 +19,8 @@ import {
   VisibilityOffOutlined,
 } from "@mui/icons-material";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { login } from "@/services/api";
 
 function GlassesToggle({ visible }: { visible: boolean }) {
   return (
@@ -79,6 +81,19 @@ function GlassesToggle({ visible }: { visible: boolean }) {
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(""); setLoading(true);
+    try { await login(username, password); router.replace("/dashboard"); }
+    catch (err) { setError(err instanceof Error ? err.message : "Falha ao autenticar."); }
+    finally { setLoading(false); }
+  }
 
   return (
     <Box
@@ -227,12 +242,15 @@ export default function LoginForm() {
               </Typography>
             </Stack>
 
-            <Box component="form" noValidate sx={{ display: "grid", gap: 2.5 }}>
+            <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2.5 }}>
               <TextField
-                label="E-mail corporativo"
-                type="email"
+                label="Usuário"
+                type="text"
                 fullWidth
-                placeholder="seu.email@otica.com"
+                placeholder="Digite seu usuário"
+                autoComplete="username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -260,6 +278,9 @@ export default function LoginForm() {
                 type={showPassword ? "text" : "password"}
                 fullWidth
                 placeholder="Digite sua senha"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -305,6 +326,7 @@ export default function LoginForm() {
                 }}
               />
 
+              {error && <Typography role="alert" color="error">{error}</Typography>}
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mt: 0.5 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                   <GlassesToggle visible={showPassword} />
@@ -313,24 +335,14 @@ export default function LoginForm() {
                   </Typography>
                 </Box>
 
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "#1d4ed8",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    textUnderlineOffset: 2,
-                  }}
-                >
-                  Solicitar acesso
-                </Typography>
+                <Typography variant="caption" sx={{ color: "#64748b" }}>Acesso administrativo</Typography>
               </Box>
 
               <Button
                 type="submit"
                 variant="contained"
                 fullWidth
+                disabled={loading || !username || !password}
                 sx={{
                   py: 1.5,
                   borderRadius: 3,
@@ -346,7 +358,7 @@ export default function LoginForm() {
                   },
                 }}
               >
-                Entrar no painel
+                {loading ? "Entrando…" : "Entrar no painel"}
               </Button>
             </Box>
 

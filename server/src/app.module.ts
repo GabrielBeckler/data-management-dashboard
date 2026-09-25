@@ -5,6 +5,9 @@ import { createObserveModule } from '@nestjs/observe';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
+import { AuthController } from './auth/auth.controller';
+import { AuthService } from './auth/auth.service';
+import { DashboardController } from './dashboard/dashboard.controller';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -21,7 +24,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       serviceId: 'server',
     }),
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, AuthController, DashboardController],
+  providers: [AppService, AuthService],
 })
 export class AppModule {}
