@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ThemeRegistry from "@/components/ThemeRegistry";
 
 export const metadata: Metadata = {
   title: "Ótica Vision | Sistema de Gestão",
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        {children}
+        <ThemeRegistry>{children}</ThemeRegistry>
       </body>
     </html>
   );

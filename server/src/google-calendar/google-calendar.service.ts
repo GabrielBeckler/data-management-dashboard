@@ -13,6 +13,21 @@ export type CreateAppointmentResult =
   | { created: true; eventId?: string }
   | { created: false; availableSlots: AppointmentSlot[] };
 
+export interface AppointmentCountByHour {
+  hour: string;
+  count: number;
+}
+
+export interface CalendarAppointment {
+  hour: string;
+  title: string;
+}
+
+export interface AppointmentsByDay {
+  date: string;
+  appointments: CalendarAppointment[];
+}
+
 @Injectable()
 export class GoogleCalendarService {
   private calendarApi: calendar_v3.Calendar | null = null;
@@ -72,6 +87,7 @@ export class GoogleCalendarService {
       timeMax: timeMax.toISOString(),
       singleEvents: true,
       orderBy: 'startTime',
+      maxResults: 2500,
     });
     const events = response.data.items ?? [];
     const slots: AppointmentSlot[] = [];
@@ -99,6 +115,109 @@ export class GoogleCalendarService {
       }
     }
     return slots;
+  }
+
+  async getAppointmentsForDate(date: string): Promise<AppointmentCountByHour[]> {
+    const timezone = this.getTimezone();
+    const { timeMin, timeMax } = this.getDayBounds(date, timezone);
+    const response = await this.getCalendar().events.list({
+      calendarId: this.getCalendarId(),
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 2500,
+    });
+
+    const counts = new Map<string, number>();
+    for (const event of response.data.items ?? []) {
+      if (event.status === 'cancelled' || event.transparency === 'transparent')
+        continue;
+      const start = event.start?.dateTime;
+      const hour = start
+        ? new Intl.DateTimeFormat('pt-BR', {
+            timeZone: timezone,
+            hour: '2-digit',
+            hourCycle: 'h23',
+          }).format(new Date(start))
+        : 'Dia inteiro';
+      counts.set(hour, (counts.get(hour) ?? 0) + 1);
+    }
+
+    return [...counts.entries()]
+      .map(([hour, count]) => ({ hour, count }))
+      .sort((a, b) => a.hour.localeCompare(b.hour, 'pt-BR'));
+  }
+
+  async getAppointmentsForWeek(date: string): Promise<AppointmentsByDay[]> {
+    const timezone = this.getTimezone();
+    const inputDate = new Date(`${date}T12:00:00Z`);
+    const mondayOffset = (inputDate.getUTCDay() + 6) % 7;
+    const monday = new Date(inputDate);
+    monday.setUTCDate(monday.getUTCDate() - mondayOffset);
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(monday);
+      day.setUTCDate(monday.getUTCDate() + index);
+      return day.toISOString().slice(0, 10);
+    });
+    const nextMonday = new Date(monday);
+    nextMonday.setUTCDate(monday.getUTCDate() + 7);
+    const { timeMin } = this.getDayBounds(days[0], timezone);
+    const { timeMax } = this.getDayBounds(nextMonday.toISOString().slice(0, 10), timezone);
+    const response = await this.getCalendar().events.list({
+      calendarId: this.getCalendarId(),
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 2500,
+    });
+    const appointmentsByDate = new Map<string, CalendarAppointment[]>(
+      days.map((day) => [day, []]),
+    );
+
+    for (const event of response.data.items ?? []) {
+      if (event.status === 'cancelled' || event.transparency === 'transparent')
+        continue;
+      const start = event.start?.dateTime;
+      const dateTime = start ? new Date(start) : null;
+      let localDate = event.start?.date;
+      if (!localDate && dateTime) {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: timezone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })
+          .formatToParts(dateTime);
+        const values = Object.fromEntries(
+          parts.map(({ type, value }) => [type, value]),
+        );
+        localDate = `${values.year}-${values.month}-${values.day}`;
+      }
+      if (!localDate) continue;
+      const dayAppointments = appointmentsByDate.get(localDate);
+      if (!dayAppointments) continue;
+      const hour = start
+        ? new Intl.DateTimeFormat('pt-BR', {
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hourCycle: 'h23',
+          }).format(new Date(start))
+        : 'Dia inteiro';
+      dayAppointments.push({
+        hour,
+        title: event.summary?.trim() || 'Compromisso sem título',
+      });
+    }
+
+    return days.map((day) => ({
+      date: day,
+      appointments: (appointmentsByDate.get(day) ?? []).sort((a, b) =>
+        a.hour.localeCompare(b.hour, 'pt-BR'),
+      ),
+    }));
   }
 
   async createAppointment(

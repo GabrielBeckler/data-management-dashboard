@@ -102,7 +102,7 @@ export default function LoginForm() {
         display: "grid",
         placeItems: "center",
         background:
-          "radial-gradient(circle at top left, rgba(96,165,250,0.18), transparent 28%), radial-gradient(circle at bottom right, rgba(15,118,110,0.22), transparent 30%), linear-gradient(135deg, #f8fbff 0%, #edf6ff 35%, #eef2ff 100%)",
+          "radial-gradient(circle at top left, rgba(109,155,142,0.18), transparent 28%), radial-gradient(circle at bottom right, rgba(197,141,90,0.14), transparent 30%), linear-gradient(135deg, #f8fbf9 0%, #eef5f1 55%, #f4f7f5 100%)",
         px: 2,
       }}
     >
@@ -125,7 +125,7 @@ export default function LoginForm() {
             position: "relative",
             p: { xs: 4, md: 6 },
             background:
-              "linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 64, 175, 0.92) 38%, rgba(14, 116, 144, 0.88) 100%)",
+              "linear-gradient(135deg, rgba(38, 59, 55, 0.98), rgba(63, 118, 107, 0.94) 55%, rgba(87, 139, 119, 0.9) 100%)",
             color: "#f8fafc",
             overflow: "hidden",
           }}
@@ -135,7 +135,7 @@ export default function LoginForm() {
               position: "absolute",
               inset: 0,
               background:
-                "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15), transparent 18%), radial-gradient(circle at 80% 15%, rgba(125,211,252,0.18), transparent 22%), radial-gradient(circle at 75% 70%, rgba(255,255,255,0.12), transparent 28%)",
+                "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15), transparent 18%), radial-gradient(circle at 80% 15%, rgba(224,183,139,0.22), transparent 22%), radial-gradient(circle at 75% 70%, rgba(255,255,255,0.12), transparent 28%)",
             }}
           />
 
@@ -201,8 +201,8 @@ export default function LoginForm() {
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 2,
-                    background: "linear-gradient(135deg, #f8fafc, #dbeafe)",
-                    color: "#0f172a",
+                    background: "linear-gradient(135deg, #f8fbf9, #dcebe3)",
+                    color: "#28564e",
                     boxShadow: "0 12px 28px rgba(148,163,184,0.35)",
                   }}
                 >
@@ -233,8 +233,8 @@ export default function LoginForm() {
         >
           <Box sx={{ width: "100%", maxWidth: 430 }}>
             <Stack spacing={2} sx={{ mb: 3 }}>
-              <Typography variant="overline" sx={{ color: "#2563eb", fontWeight: 700 }}>Acesso</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a" }}>
+              <Typography variant="overline" sx={{ color: "primary.main", fontWeight: 700 }}>Acesso</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: "text.primary" }}>
                 Entrar no sistema
               </Typography>
               <Typography variant="body2" sx={{ color: "#475569" }}>
@@ -348,13 +348,13 @@ export default function LoginForm() {
                   borderRadius: 3,
                   fontWeight: 800,
                   fontSize: 15,
-                  background: "linear-gradient(135deg, #0f172a 0%, #1d4ed8 45%, #0ea5e9 100%)",
+                  background: "linear-gradient(135deg, #28564e 0%, #3f766b 58%, #6d9b8e 100%)",
                   textTransform: "none",
-                  boxShadow: "0 18px 40px rgba(37,99,235,0.32)",
+                  boxShadow: "0 18px 40px rgba(63,118,107,0.25)",
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
                   "&:hover": {
                     transform: "translateY(-1px)",
-                    boxShadow: "0 20px 50px rgba(37,99,235,0.4)",
+                    boxShadow: "0 20px 50px rgba(63,118,107,0.32)",
                   },
                 }}
               >

@@ -9,6 +9,14 @@ export type DashboardSummary = {
   recentClients: { id: string; nome: string; telefone: string; createdAt: string }[];
 };
 
+export type WeeklyAppointments = {
+  days: {
+    date: string;
+    count: number;
+    appointments: { hour: string; title: string }[];
+  }[];
+};
+
 export async function login(username: string, password: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
   if (!response.ok) throw new Error(response.status === 401 ? "Usuário ou senha inválidos." : "Não foi possível entrar no sistema.");
@@ -26,6 +34,15 @@ export async function getSession(): Promise<boolean> {
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const response = await fetch(`${API_BASE_URL}/dashboard/summary`, { credentials: "include", cache: "no-store" });
   if (!response.ok) throw new Error("Não foi possível carregar os dados do painel.");
+  return response.json();
+}
+
+export async function getWeeklyAppointments(): Promise<WeeklyAppointments> {
+  const response = await fetch(`${API_BASE_URL}/dashboard/appointments/week`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Não foi possível carregar os agendamentos da semana no Google Agenda.");
   return response.json();
 }
 

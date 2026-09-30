@@ -43,17 +43,17 @@ export default function WhatsAppQrPage() {
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
-        background: "linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)",
+        background: "linear-gradient(135deg, #f8fbf9 0%, #edf4f0 100%)",
         p: 3,
       }}
     >
       <Card sx={{ width: "100%", maxWidth: 720, p: 4, borderRadius: 4, boxShadow: 6 }}>
         <Stack spacing={3} sx={{ alignItems: "center", textAlign: "center" }}>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a" }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: "primary.dark" }}>
             WhatsApp do atendimento
           </Typography>
 
-          <Typography variant="body1" sx={{ color: "#475569" }}>
+          <Typography variant="body1" color="text.secondary">
             {status?.status === "qr_available"
               ? "Escaneie o QR Code abaixo para autenticar o WhatsApp."
               : status?.status === "ready"
@@ -73,7 +73,7 @@ export default function WhatsAppQrPage() {
               py: 1.6,
               borderRadius: 3,
               fontWeight: 700,
-              background: "linear-gradient(135deg, #0f172a, #2563eb)",
+              background: "linear-gradient(135deg, #28564e, #3f766b)",
             }}
           >
             {loading ? "Conectando..." : "Conectar WhatsApp"}
@@ -118,7 +118,7 @@ export default function WhatsAppQrPage() {
             </Box>
           )}
 
-          <Button variant="text" onClick={void refreshStatus} sx={{ color: "#2563eb", fontWeight: 700 }}>
+          <Button variant="text" onClick={void refreshStatus} color="primary" sx={{ fontWeight: 700 }}>
             Atualizar status
           </Button>
         </Stack>

@@ -8,12 +8,14 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { DashboardController } from './dashboard/dashboard.controller';
+import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
 @Module({
   imports: [
     PrismaModule,
+    GoogleCalendarModule,
     ScheduleModule.forRoot(),
     WhatsAppModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error
