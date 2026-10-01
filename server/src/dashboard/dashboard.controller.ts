@@ -46,6 +46,28 @@ export class DashboardController {
     };
   }
 
+  @Get('clients')
+  async clients(@Req() request: Request) {
+    this.assertSession(request);
+    const clients = await this.prisma.cliente.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        agendamentos: {
+          orderBy: [{ data: 'desc' }, { horaInicio: 'desc' }],
+          take: 1,
+          select: { status: true },
+        },
+      },
+    });
+    return clients.map((client) => ({
+      id: client.id.toString(),
+      nome: client.nome,
+      email: client.email,
+      telefone: client.telefone,
+      atendimento: client.agendamentos[0]?.status ?? null,
+    }));
+  }
+
   private assertSession(request: Request): void {
     const cookie = (request.headers.cookie || '')
       .split(';')

@@ -52,6 +52,12 @@ export class ConversationService {
         case 'appointment_name':
           replies = [await this.handleName(state, input)];
           break;
+        case 'appointment_email':
+          replies = [await this.handleEmail(state, input)];
+          break;
+        case 'appointment_address':
+          replies = [await this.handleAddress(state, input)];
+          break;
         case 'appointment_date':
           replies = await this.handleDate(state, input);
           break;
@@ -134,6 +140,38 @@ export class ConversationService {
       this.logger.error('Could not update WhatsApp customer name');
       return 'Não consegui salvar seu nome agora. Tente novamente em alguns instantes.';
     }
+    state.state = 'appointment_email';
+    state.step = 'appointment_email';
+    return 'Qual é o seu e-mail?';
+  }
+
+  private async handleEmail(state: ConversationState, email: string): Promise<string> {
+    const normalized = email.trim().toLowerCase();
+    if (normalized.length > 150 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized))
+      return 'Esse e-mail parece inválido. Envie um e-mail válido.';
+    try {
+      await this.persistence.updateCustomerDetails(state.phone, { email: normalized });
+    } catch {
+      this.logger.error('Could not save WhatsApp customer email');
+      return 'Não consegui salvar seu e-mail agora. Tente novamente em alguns instantes.';
+    }
+    state.data.email = normalized;
+    state.state = 'appointment_address';
+    state.step = 'appointment_address';
+    return 'Qual é o seu endereço completo?';
+  }
+
+  private async handleAddress(state: ConversationState, address: string): Promise<string> {
+    const normalized = address.trim();
+    if (!normalized) return 'Por favor, informe seu endereço completo.';
+    if (normalized.length > 255) return 'O endereço deve ter até 255 caracteres. Envie um endereço mais curto.';
+    try {
+      await this.persistence.updateCustomerDetails(state.phone, { endereco: normalized });
+    } catch {
+      this.logger.error('Could not save WhatsApp customer address');
+      return 'Não consegui salvar seu endereço agora. Tente novamente em alguns instantes.';
+    }
+    state.data.address = normalized;
     state.state = 'appointment_date';
     state.step = 'appointment_date';
     return 'Qual data você prefere? Informe no formato DD/MM ou DD/MM/AAAA.';

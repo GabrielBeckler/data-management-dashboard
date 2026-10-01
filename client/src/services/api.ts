@@ -17,6 +17,23 @@ export type WeeklyAppointments = {
   }[];
 };
 
+export type ClientRecord = {
+  id: string;
+  nome: string;
+  email: string | null;
+  telefone: string;
+  endereco: string | null;
+  atendimento: string | null;
+  avaliacao: number | null;
+  relatorioAvaliacao: string | null;
+};
+
+export async function getClients(): Promise<ClientRecord[]> {
+  const response = await fetch(`${API_BASE_URL}/dashboard/clients`, { credentials: "include", cache: "no-store" });
+  if (!response.ok) throw new Error("Não foi possível carregar os clientes.");
+  return response.json();
+}
+
 export async function login(username: string, password: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
   if (!response.ok) throw new Error(response.status === 401 ? "Usuário ou senha inválidos." : "Não foi possível entrar no sistema.");

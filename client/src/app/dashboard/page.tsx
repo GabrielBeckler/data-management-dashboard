@@ -98,7 +98,7 @@ export default function DashboardPage() {
         <Card sx={{ height: "100%" }}><CardContent>
           <Typography variant="h6" sx={{ mb: 2 }}>Clientes recentes</Typography>
           {data.recentClients.length ? data.recentClients.map((client) => <Box key={client.id} sx={{ display: "flex", justifyContent: "space-between", py: 1.25, borderBottom: "1px solid", borderColor: "divider", gap: 2 }}>
-            <Typography fontWeight={600}>{client.nome}</Typography>
+            <Typography sx={{ fontWeight: 600 }}>{client.nome}</Typography>
             <Typography color="text.secondary" variant="body2">{client.telefone}</Typography>
           </Box>) : <Typography color="text.secondary">Ainda não há clientes cadastrados.</Typography>}
         </CardContent></Card>

@@ -13,6 +13,9 @@ model Cliente {
   nome           String        @db.VarChar(150)
   telefone       String        @unique(map: "uk_clientes_telefone") @db.VarChar(30)
   email          String?       @db.VarChar(150)
+  endereco       String?       @db.VarChar(255)
+  avaliacao      Int?          @db.UnsignedTinyInt
+  relatorioAvaliacao String?   @map("relatorio_avaliacao") @db.Text
   dataNascimento DateTime?     @map("data_nascimento") @db.Date
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(0)
   updatedAt      DateTime      @default(now()) @map("updated_at") @db.Timestamp(0)

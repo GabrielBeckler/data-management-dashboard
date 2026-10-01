@@ -36,6 +36,8 @@ export interface ConversationState {
 export type ConversationStep =
   | 'initial'
   | 'appointment_name'
+  | 'appointment_email'
+  | 'appointment_address'
   | 'appointment_date'
   | 'appointment_time'
   | 'appointment_confirmation'
@@ -50,6 +52,8 @@ export interface AppointmentSlot {
 
 export interface ConversationData {
   name?: string;
+  email?: string;
+  address?: string;
   date?: string;
   time?: string;
   slots?: AppointmentSlot[];

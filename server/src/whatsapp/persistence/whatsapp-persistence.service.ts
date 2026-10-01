@@ -26,7 +26,11 @@ export class WhatsAppPersistenceService {
     return digits;
   }
 
-  async ensureCustomer(phone: string, name?: string) {
+  async ensureCustomer(
+    phone: string,
+    name?: string,
+    details?: { email?: string; endereco?: string },
+  ) {
     const normalized = this.normalizePhone(phone);
     const nationalNumber = normalized.startsWith('55')
       ? normalized.slice(2)
@@ -42,12 +46,14 @@ export class WhatsAppPersistenceService {
 
     const displayName = name?.trim();
     if (customer) {
-      const update: { telefone?: string; nome?: string; updatedAt: Date } = {
+      const update: { telefone?: string; nome?: string; email?: string; endereco?: string; updatedAt: Date } = {
         updatedAt: new Date(),
       };
       if (customer.telefone !== normalized) update.telefone = normalized;
       if (displayName && displayName !== customer.nome)
         update.nome = displayName;
+      if (details?.email) update.email = details.email;
+      if (details?.endereco) update.endereco = details.endereco;
       if (Object.keys(update).length === 1) return customer;
       return this.prisma.cliente.update({
         where: { id: customer.id },
@@ -60,6 +66,8 @@ export class WhatsAppPersistenceService {
         data: {
           telefone: normalized,
           nome: displayName || 'Cliente WhatsApp',
+          ...(details?.email ? { email: details.email } : {}),
+          ...(details?.endereco ? { endereco: details.endereco } : {}),
         },
       });
     } catch (error) {
@@ -74,6 +82,13 @@ export class WhatsAppPersistenceService {
 
   async updateCustomerName(phone: string, name: string): Promise<void> {
     await this.ensureCustomer(phone, name);
+  }
+
+  async updateCustomerDetails(
+    phone: string,
+    details: { email?: string; endereco?: string },
+  ): Promise<void> {
+    await this.ensureCustomer(phone, undefined, details);
   }
 
   async saveMessage(
@@ -168,6 +183,7 @@ export class WhatsAppPersistenceService {
           data: this.toDbDate(input.date),
           horaInicio: this.toDbTime(input.start),
           horaFim: this.toDbTime(input.end),
+          status: 'remarcado',
           ...(input.googleEventId
             ? { googleEventId: input.googleEventId }
             : {}),
@@ -203,7 +219,7 @@ export class WhatsAppPersistenceService {
     const appointments = await this.prisma.agendamento.findMany({
       where: {
         data: { gte: tomorrow, lt: dayAfter },
-        status: 'confirmado',
+        status: { in: ['confirmado', 'remarcado'] },
       },
       include: { cliente: true },
       orderBy: [{ data: 'asc' }, { horaInicio: 'asc' }],
@@ -258,7 +274,7 @@ export class WhatsAppPersistenceService {
         enviado: true,
         enviadoEm: { gte: startOfToday },
         agendamento: {
-          status: 'confirmado',
+          status: { in: ['confirmado', 'remarcado'] },
           data: { gte: startOfToday },
           cliente: { telefone: normalized },
         },
